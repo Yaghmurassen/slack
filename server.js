@@ -1,14 +1,19 @@
 const express = require('express');
-const socketIO = require('socket.io');
 const http = require('http');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+// const cookieParser = require('cookie-parser');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const webSocket = require('./api/webSocket');
+const { setSessionId } = require('./api/utils/setSessionId');
+const { authChecker } = require('./api/utils/checkAuth');
 
 const routerChannels = require('./api/routes/channels');
 const routerMessages = require('./api/routes/messages');
-const routerUsers = require('./api/routes/users');
+const routerUser = require('./api/routes/users');
+const routerAuth = require('./api/routes/auth');
 
 const port = process.env.PORT;
 
@@ -22,21 +27,22 @@ app.use(
   })
 );
 
-app.use('/api/channels', routerChannels);
-app.use('/api/messages', routerMessages);
-app.use('/api/users', routerUsers);
+// app.use(cookieParser());
+app.use(setSessionId);
 
 const server = http.createServer(app);
-const io = socketIO(server);
+const io = webSocket.getWebSocket(server);
+app.use(webSocket.useSocket(io));
 
-app.io = io;
+app.use('/api/auth', routerAuth);
+
 io.on('connection', socket => {
   console.log('user connected');
+  app.use(authChecker);
 
-  socket.on('getMessageFromClient', data => {
-    io.emit('sendMessagesToclient', data);
-    console.log('message : ', data);
-  });
+  app.use('/api/channels', routerChannels);
+  app.use('/api/messages', routerMessages);
+  app.use('/api/user', routerUser);
 
   socket.on('disconnect', function() {
     console.log('user disconnected');

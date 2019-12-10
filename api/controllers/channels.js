@@ -1,9 +1,11 @@
-const dataLayer = require('../data-layer/index');
+const dataLayer = require("../data-layer/index");
+const webSocket = require("../webSocket");
 
 const createChannel = async (req, res) => {
   const channelName = req.body.name;
   const newChannel = await dataLayer.createChannel(channelName);
-  res.send(201, newChannel);
+  webSocket.notifyClienOfNewChannel(req.socket, channelName);
+  res.send(201, newChannel); // grégoire envoi channelName ici ?
 };
 
 const deleteChannel = async (req, res) => {
@@ -35,5 +37,5 @@ module.exports = {
   deleteChannel,
   getChannels,
   getMessagesByChannel,
-  changeChannelName,
+  changeChannelName
 };
