@@ -1,3 +1,6 @@
+
+# slack
+
 ## env setup
 
     - see .env.example
@@ -14,3 +17,12 @@
 
     web-app :
     - cd web-app && npm i
+
+
+## launch
+
+    api :
+    - node run server
+
+    web-app :
+    - npm start
