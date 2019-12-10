@@ -38,8 +38,17 @@ const getChannels = async () => {
 };
 const getMessagesByChannel = async id => {
   try {
-    const messageList = await pool.query(
-      `SELECT * FROM message WHERE channel_id = $1`,
+    // const messageList = await pool.query(
+    //   `SELECT * FROM message WHERE channel_id = $1`,
+    //   [id]
+    // );
+    const messagesList = await pool.query(
+      `SELECT message.*, appuser.username
+      FROM message
+      LEFT JOIN appuser
+      ON message.appuser_id = appuser.id
+      WHERE message.channel_id = $1
+      ORDER BY message.id`,
       [id]
     );
     return messageList.rows;
@@ -48,12 +57,16 @@ const getMessagesByChannel = async id => {
   }
 };
 
-const createMessage = async (content, channelId) => {
-  const message = await pool.query(
-    `INSERT INTO message (content, channel_id) VALUES ($1, $2) RETURNING *`,
-    [content, channelId]
-  );
-  return message.rows[0];
+const createMessage = async (content, channelId, userId) => {
+  try {
+    const message = await pool.query(
+      `INSERT INTO message (content,channel_id, appuser_id) VALUES ($1, $2, $3) RETURNING *`,
+      [content, channelId, userId]
+    );
+    return message.rows[0];
+  } catch (error) {
+    console.log('error : ', error);
+  }
 };
 
 const changeChannelName = async (newChannelName, channelId) => {
@@ -71,9 +84,9 @@ const changeChannelName = async (newChannelName, channelId) => {
   }
 };
 
-const createUser = async name => {
+const createUser = async (username, password) => {
   try {
-    await pool.query(`INSERT INTO appuser (name) VALUES ($1)`, [name]);
+    await pool.query(`INSERT INTO appuser (username, password) VALUES ($1, crypt($2, gen_salt('bf)))`, [username, password]);
   } catch (error) {
     console.log('error: ', error);
   }
@@ -108,6 +121,18 @@ const getMessagesByUser = async userId => {
   }
 };
 
+const findUserByUsername = async username => {
+  try {
+    const queryResult = await pool.query(
+      `SELECT * from appuser WHERE username = $1`,
+      [username]
+    );
+    return queryResult.rows[0];
+  } catch (error) {
+    console.log('error: ', error);
+  }
+};
+
 const changeUserName = async (newUserName, userId) => {
   try {
     await pool.query(`UPDATE user SET name = $1 WHERE id = $2`, [
@@ -123,6 +148,54 @@ const changeUserName = async (newUserName, userId) => {
   }
 };
 
+
+const verifyUser = async (username, password) => {
+  try {
+    const queryResult = await pool.query(
+      `SELECT * FROM appuser WHERE username=$1 AND password = crypt($2,password)`,
+      [username, password]
+    );
+    return queryResult.rows[0];
+  } catch (error) {
+    console.log('error: ', error);
+  }
+};
+
+const createSession = async (sessionId, user_id) => {
+  try {
+    const user = await pool.query(
+      `INSERT INTO user_session (sessionId, user_id) VALUES ($1, $2)`,
+      [sessionId, user_id]
+    );
+    return user.rows[0];
+  } catch (error) {
+    console.log('error: ', error);
+  }
+};
+
+const updateSession = async (sessionId, user_id) => {
+  try {
+    await pool.query(
+      `UPDATE user_session SET user_id = $1 WHERE sessionId = $2`,
+      [user_id, sessionId]
+    );
+  } catch (error) {
+    console.log('error: ', error);
+  }
+};
+
+const findSessionById = async sessionId => {
+  try {
+    const session = await pool.query(
+      `SELECT * FROM user_session WHERE sessionId=$1`,
+      [sessionId]
+    );
+    return session.rows[0];
+  } catch (error) {
+    console.log('error', error);
+  }
+};
+
 module.exports = {
   createChannel,
   deleteChannel,
@@ -135,4 +208,9 @@ module.exports = {
   getUsers,
   getMessagesByUser,
   changeUserName,
+  findUserByUsername,
+  verifyUser,
+  createSession,
+  findSessionById,
+  updateSession,
 };

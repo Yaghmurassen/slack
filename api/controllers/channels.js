@@ -1,4 +1,4 @@
-const dataLayer = require("../data-layer/index");
+const dataLayer = require("../data-layer");
 const webSocket = require("../webSocket");
 
 const createChannel = async (req, res) => {
@@ -22,7 +22,16 @@ const getChannels = async (req, res) => {
 const getMessagesByChannel = async (req, res) => {
   const id = req.params.id;
   const messageList = await dataLayer.getMessageByChannel(id);
-  res.send(200, messageList);
+  const filteredList = messagesList.map(message => {
+    return {
+      id: message.id,
+      content: message.content,
+      created_at: message.created_at,
+      updated_at: message.updated_at,
+      username: message.username,
+    };
+  });
+  res.send(200, filteredList);
 };
 
 const changeChannelName = async (req, res) => {

@@ -3,7 +3,7 @@ const http = require('http');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-// const cookieParser = require('cookie-parser');
+const cookieParser = require('cookie-parser');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const webSocket = require('./api/webSocket');
@@ -12,10 +12,8 @@ const { authChecker } = require('./api/utils/checkAuth');
 
 const routerChannels = require('./api/routes/channels');
 const routerMessages = require('./api/routes/messages');
-const routerUser = require('./api/routes/users');
 const routerAuth = require('./api/routes/auth');
-
-const port = process.env.PORT;
+const routerWhoAmI = require('./api/routes/whoAmI');
 
 const app = express();
 
@@ -27,14 +25,15 @@ app.use(
   })
 );
 
-// app.use(cookieParser());
+app.use(cookieParser());
 app.use(setSessionId);
 
 const server = http.createServer(app);
-const io = webSocket.getWebSocket(server);
+const io = require('socket.io').listen(server);
 app.use(webSocket.useSocket(io));
 
 app.use('/api/auth', routerAuth);
+app.use('/api/whoami', routerWhoAmI);
 
 io.on('connection', socket => {
   console.log('user connected');
@@ -42,13 +41,19 @@ io.on('connection', socket => {
 
   app.use('/api/channels', routerChannels);
   app.use('/api/messages', routerMessages);
-  app.use('/api/user', routerUser);
 
-  socket.on('disconnect', function() {
+  app.use(express.static(path.join(__dirname, 'web-app', 'build')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web-app', 'build', 'index.html'));
+  });
+
+  socket.on('disconnect', function () {
     console.log('user disconnected');
   });
 });
 
-server.listen(port, '0.0.0.0', function() {
+const port = process.env.PORT;
+
+server.listen(port, '0.0.0.0', function () {
   console.log(`Example app listening on port ${port}!`);
 });
